@@ -1,0 +1,126 @@
+{
+    "_comment": "HkzSCPSLEGG — разработчик hakyz",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-06-21T12:00:00+00:00",
+    "name": "HkzSCPSLEGG",
+    "author": "hakyzscpsl@gmail.com",
+    "description": "SCP: Secret Laboratory + EXILED для Pterodactyl. Последний stable EXILED, фикс прав. Разработчик: hakyz.",
+    "features": null,
+    "docker_images": {
+        "SteamCMD Debian": "ghcr.io/ptero-eggs/steamcmd:debian"
+    },
+    "file_denylist": [],
+    "startup": "./.egg/start.sh {{SERVER_PORT}}",
+    "config": {
+        "files": "{\n    \"config_gameplay.txt\": {\n        \"parser\": \"yaml\",\n        \"find\": {\n            \"server_ip\": \"0.0.0.0\",\n            \"forward_ports\": \"false\"\n        }\n    }\n}",
+        "startup": "{\n    \"done\": \"\\u041e\\u0436\\u0438\\u0434\\u0430\\u043d\\u0438\\u0435 \\u0438\\u0433\\u0440\\u043e\\u043a\\u043e\\u0432..\"\n}",
+        "logs": "{}",
+        "stop": "exit"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\n# HkzSCPSLEGG — SCP: Secret Laboratory + EXILED install script for Pterodactyl\n# Author: hakyz\n# Server root: /mnt/server\n\nset -e\n\nHKZ_EGG_NAME=\"HkzSCPSLEGG\"\nHKZ_EGG_AUTHOR=\"hakyz\"\nHKZ_EGG_VERSION=\"1.0.0\"\n\nhkz_msg() { echo \"[${HKZ_EGG_NAME}] $*\"; }\nhkz_step() { echo \"[${HKZ_EGG_NAME}] >> $*\"; }\nhkz_err() { echo \"[${HKZ_EGG_NAME}] ERROR: $*\" >&2; }\n\nhkz_banner() {\n  cat <<'EOF'\n\n  ╔══════════════════════════════════════════════════╗\n  ║                                                  ║\n  ║              HkzSCPSLEGG  v1.0.0                 ║\n  ║                                                  ║\n  ║        SCP: Secret Laboratory + EXILED           ║\n  ║              Pterodactyl · hakyz                 ║\n  ║                                                  ║\n  ╚══════════════════════════════════════════════════╝\n\nEOF\n  hkz_msg \"v${HKZ_EGG_VERSION} | ${HKZ_EGG_AUTHOR}\"\n}\n\nhkz_steamcmd_install() {\n  hkz_step \"Installing SteamCMD\"\n  cd /tmp\n  mkdir -p /mnt/server/steamcmd\n  curl -fsSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz\n  tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd\n  cd /mnt/server/steamcmd\n\n  chown -R root:root /mnt\n  export HOME=/mnt/server\n\n  if [ \"${BETA_TAG:-none}\" = \"none\" ]; then\n    ./steamcmd.sh +force_install_dir /mnt/server +login anonymous +app_update \"${SRCDS_APPID}\" validate +quit\n  else\n    ./steamcmd.sh +force_install_dir /mnt/server +login anonymous +app_update \"${SRCDS_APPID}\" -beta \"${BETA_TAG}\" validate +quit\n  fi\n}\n\nhkz_write_start_sh() {\n  hkz_step \"Writing start.sh\"\n  mkdir -p /mnt/server/.egg\n  rm -f /mnt/server/.egg/start.sh\n  touch /mnt/server/.egg/start.sh\n  chmod +x /mnt/server/.egg/start.sh\n\n  if [ \"${INSTALL_DIBOT:-false}\" = \"true\" ]; then\n    cat >>/mnt/server/.egg/start.sh <<'EOF'\n#!/bin/bash\n./.egg/DIBot/DiscordIntegration.Bot > /dev/null &\n./LocalAdmin ${SERVER_PORT}\nEOF\n    hkz_msg \"start.sh: LocalAdmin + Discord Integration bot\"\n\n  elif [ \"${INSTALL_SCPBOT:-false}\" = \"true\" ]; then\n    cat >>/mnt/server/.egg/start.sh <<'EOF'\n#!/bin/bash\n./.egg/SCPDBot/SCPDiscordBot_Linux &\n./LocalAdmin ${SERVER_PORT}\nEOF\n    hkz_msg \"start.sh: LocalAdmin + SCPDiscord bot\"\n\n  else\n    cat >>/mnt/server/.egg/start.sh <<'EOF'\n#!/bin/bash\n./LocalAdmin ${SERVER_PORT}\nEOF\n    hkz_msg \"start.sh: LocalAdmin only\"\n  fi\n}\n\nhkz_install_dibot() {\n  [ \"${INSTALL_DIBOT:-false}\" = \"true\" ] || { hkz_msg \"Discord Integration: skipped\"; return 0; }\n\n  hkz_step \"Installing Discord Integration\"\n  mkdir -p /mnt/server/.egg/DIBot\n  mkdir -p /mnt/server/.config/EXILED/Plugins\n\n  rm -f /mnt/server/.egg/DIBot/DiscordIntegration.Bot\n  curl -fsSL -o /mnt/server/.egg/DIBot/DiscordIntegration.Bot \\\n    https://github.com/Exiled-Team/DiscordIntegration/releases/latest/download/DiscordIntegration.Bot\n  chmod +x /mnt/server/.egg/DIBot/DiscordIntegration.Bot\n\n  rm -f /mnt/server/.config/EXILED/Plugins/DiscordIntegration.dll\n  curl -fsSL -o /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz \\\n    https://github.com/Exiled-Team/DiscordIntegration/releases/latest/download/Plugin.tar.gz\n  tar -xzf /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz -C /mnt/server/.config/EXILED/Plugins\n  rm -f /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz\n  hkz_msg \"Discord Integration: done\"\n}\n\nhkz_install_scpbot() {\n  [ \"${INSTALL_SCPBOT:-false}\" = \"true\" ] || { hkz_msg \"SCPDiscord: skipped\"; return 0; }\n\n  hkz_step \"Installing SCPDiscord\"\n  local plugdir=\"/mnt/server/.config/SCP Secret Laboratory/PluginAPI/plugins/global\"\n  mkdir -p /mnt/server/.egg/SCPDBot \"${plugdir}\"\n\n  rm -f /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux\n  curl -fsSL -o /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux \\\n    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/SCPDiscordBot_Linux\n  chmod +x /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux\n\n  rm -f \"${plugdir}/SCPDiscord.dll\" \"${plugdir}/dependencies.zip\"\n  curl -fsSL -o \"${plugdir}/dependencies.zip\" \\\n    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/dependencies.zip\n  curl -fsSL -o \"${plugdir}/SCPDiscord.dll\" \\\n    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/SCPDiscord.dll\n  unzip -oq \"${plugdir}/dependencies.zip\" -d \"${plugdir}/\"\n  rm -f \"${plugdir}/dependencies.zip\"\n  hkz_msg \"SCPDiscord: done\"\n}\n\nhkz_install_exiled() {\n  [ \"${INSTALL_EXILED:-true}\" = \"true\" ] || { hkz_msg \"EXILED: skipped\"; return 0; }\n\n  hkz_step \"Installing EXILED (latest stable)\"\n  mkdir -p /mnt/server/.config/EXILED/Configs/Plugins\n  mkdir -p \"/mnt/server/.config/SCP Secret Laboratory/PluginAPI/plugins/global\"\n\n  curl -fsSL -o /tmp/Exiled.Installer-Linux \\\n    https://github.com/ExMod-Team/EXILED/releases/latest/download/Exiled.Installer-Linux\n  chmod +x /tmp/Exiled.Installer-Linux\n\n  local args=\"--path /mnt/server --appdata /mnt/server/.config --exiled /mnt/server/.config/EXILED --skip-version-select --exit\"\n\n  if [ \"${EXILED_PRE:-false}\" = \"true\" ]; then\n    hkz_msg \"EXILED channel: pre-release\"\n    /tmp/Exiled.Installer-Linux ${args} --pre-releases\n\n  elif [ \"${EXILED_PRE:-false}\" = \"false\" ] || [ -z \"${EXILED_PRE:-}\" ]; then\n    hkz_msg \"EXILED channel: stable (latest)\"\n    /tmp/Exiled.Installer-Linux ${args}\n\n  else\n    hkz_msg \"EXILED channel: version ${EXILED_PRE}\"\n    /tmp/Exiled.Installer-Linux ${args} --target-version \"${EXILED_PRE}\"\n  fi\n\n  rm -f /tmp/Exiled.Installer-Linux\n  hkz_msg \"EXILED: done\"\n}\n\nhkz_remove_updater() {\n  if [ \"${REMOVE_UPDATER:-false}\" = \"true\" ]; then\n    hkz_step \"Removing Exiled.Updater\"\n    rm -f /mnt/server/.config/EXILED/Plugins/Exiled.Updater.dll\n  fi\n}\n\nhkz_install_custom_plugin() {\n  local url=\"$1\"\n  local plugin_json=\"/tmp/hkz-plugin.json\"\n\n  if [ \"${GITHUB_TOKEN:-none}\" = \"none\" ]; then\n    curl -fsSL \"$url\" -o \"${plugin_json}\"\n  else\n    curl -fsSL -u \"${GITHUB_USERNAME:-}:${GITHUB_TOKEN}\" \"$url\" -o \"${plugin_json}\"\n  fi\n\n  local dl name\n  dl=$(jq -r '.assets[0].browser_download_url // empty' \"${plugin_json}\")\n  name=$(jq -r '.assets[0].name // empty' \"${plugin_json}\")\n\n  if [ -z \"$dl\" ] || [ \"$dl\" = \"null\" ]; then\n    hkz_err \"Bad plugin URL or GitHub rate limit: $url\"\n    rm -f \"${plugin_json}\"\n    return 1\n  fi\n\n  hkz_msg \"Custom plugin: ${name}\"\n  rm -f \"/mnt/server/.config/EXILED/Plugins/${name}\"\n\n  if [ \"${GITHUB_TOKEN:-none}\" = \"none\" ]; then\n    curl -fsSL -o \"/mnt/server/.config/EXILED/Plugins/${name}\" \"$dl\"\n  else\n    local api_url\n    api_url=$(jq -r '.assets[0].url' \"${plugin_json}\" | sed \"s|https://|https://${GITHUB_TOKEN}:@|\")\n    curl -fsSL --header 'Accept: application/octet-stream' \"$api_url\" \\\n      -o \"/mnt/server/.config/EXILED/Plugins/${name}\"\n  fi\n\n  rm -f \"${plugin_json}\"\n}\n\nhkz_install_custom_plugins() {\n  [ \"${INSTALL_CUSTOM:-false}\" = \"true\" ] || return 0\n\n  hkz_step \"Installing custom plugins from .egg/customplugins.txt\"\n  touch /mnt/server/.egg/customplugins.txt\n  mkdir -p /mnt/server/.config/EXILED/Plugins\n\n  grep -v '^[[:space:]]*#' /mnt/server/.egg/customplugins.txt | while IFS= read -r line; do\n    [ -n \"$line\" ] || continue\n    hkz_install_custom_plugin \"$line\" || true\n  done\n}\n\nhkz_fix_permissions() {\n  hkz_step \"Fixing file ownership for Pterodactyl (uid 998)\"\n  chown -R 998:998 /mnt/server\n  chmod -R u+rwX,g+rwX /mnt/server/.config 2>/dev/null || true\n}\n\n# --- main ---\nhkz_banner\n\ncd /mnt/server 2>/dev/null || true\nhkz_steamcmd_install\n\ncd /mnt/server || { hkz_err \"Cannot cd to /mnt/server\"; exit 1; }\n\nhkz_write_start_sh\nhkz_install_dibot\nhkz_install_scpbot\nhkz_install_exiled\nhkz_remove_updater\nhkz_install_custom_plugins\nhkz_fix_permissions\n\nhkz_msg \"Install complete — ${HKZ_EGG_NAME} by ${HKZ_EGG_AUTHOR}\"\n",
+            "container": "ghcr.io/ptero-eggs/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "ID приложения Steam",
+            "env_variable": "SRCDS_APPID",
+            "default_value": "996560",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Бета-ветка Steam",
+            "description": "none — стабильная ветка, иначе имя бета-ветки",
+            "env_variable": "BETA_TAG",
+            "default_value": "none",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "Установить EXILED",
+            "env_variable": "INSTALL_EXILED",
+            "default_value": "true",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Версия EXILED",
+            "description": "false — последний stable, true — pre-release, или номер версии (например 9.14.2)",
+            "env_variable": "EXILED_PRE",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:32",
+            "field_type": "text"
+        },
+        {
+            "name": "Удалить Exiled.Updater",
+            "env_variable": "REMOVE_UPDATER",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Бот Discord Integration",
+            "env_variable": "INSTALL_DIBOT",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Бот SCPDiscord",
+            "env_variable": "INSTALL_SCPBOT",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Кастомные плагины",
+            "description": "Список URL релизов GitHub в .egg/customplugins.txt",
+            "env_variable": "INSTALL_CUSTOM",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub токен",
+            "description": "none — без токена; иначе токен для скачивания плагинов",
+            "env_variable": "GITHUB_TOKEN",
+            "default_value": "none",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub логин",
+            "env_variable": "GITHUB_USERNAME",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:64",
+            "field_type": "text"
+        }
+    ]
+}
