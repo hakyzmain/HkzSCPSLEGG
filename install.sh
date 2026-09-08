@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.1"
+HKZ_EGG_VERSION="1.0.2"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.1                 ║
+  ║              HkzSCPSLEGG  v1.0.2                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -29,16 +29,26 @@ hkz_download_steamcmd() {
   local out="$1"
   local url
   local urls=(
-    "https://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
-    "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
+    "https://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
+    "http://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
     "http://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
+    "http://media.steampowered.com/client/steamcmd_linux.tar.gz"
+    "http://cdn.akamai.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
+    "http://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
+    "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
+    "https://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
+    "https://web.archive.org/web/20240521141411if_/https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
   )
 
   for url in "${urls[@]}"; do
     hkz_msg "SteamCMD mirror: ${url}"
     if curl -fsSL --connect-timeout 15 --retry 2 -o "${out}" "${url}"; then
       if [ -s "${out}" ]; then
-        return 0
+        local sz
+        sz=$(wc -c < "${out}" | tr -d ' ')
+        if [ "${sz}" -gt 100000 ]; then
+          return 0
+        fi
       fi
     fi
     hkz_msg "Mirror failed, trying next…"
