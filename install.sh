@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.2"
+HKZ_EGG_VERSION="1.0.3"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.2                 ║
+  ║              HkzSCPSLEGG  v1.0.3                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -29,6 +29,8 @@ hkz_download_steamcmd() {
   local out="$1"
   local url
   local urls=(
+    "https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz"
+    "https://github.com/hakyzmain/steamcmd/raw/main/steamcmd_linux.tar.gz"
     "https://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
     "http://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
     "http://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
