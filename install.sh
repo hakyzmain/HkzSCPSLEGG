@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.4"
+HKZ_EGG_VERSION="1.0.5"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.4                 ║
+  ║              HkzSCPSLEGG  v1.0.5                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -29,7 +29,7 @@ hkz_steamcmd_install() {
   hkz_step "Installing SteamCMD"
   cd /tmp
   mkdir -p /mnt/server/steamcmd
-  curl -fsSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+  curl -fsSL -o steamcmd.tar.gz https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz
   tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
   cd /mnt/server/steamcmd
 
