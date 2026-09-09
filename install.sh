@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.5"
+HKZ_EGG_VERSION="1.0.6"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.5                 ║
+  ║              HkzSCPSLEGG  v1.0.6                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -23,6 +23,34 @@ hkz_banner() {
 
 EOF
   hkz_msg "v${HKZ_EGG_VERSION} | ${HKZ_EGG_AUTHOR}"
+}
+
+hkz_prepare_network() {
+  hkz_step "Preparing DNS and CA certificates"
+
+  cat >/etc/resolv.conf <<'EOF'
+nameserver 77.88.8.8
+nameserver 77.88.8.1
+nameserver 9.9.9.9
+EOF
+
+  export DEBIAN_FRONTEND=noninteractive
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -y >/dev/null 2>&1 || true
+    apt-get install -y --no-install-recommends ca-certificates curl openssl >/dev/null 2>&1 || true
+  fi
+
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    update-ca-certificates >/dev/null 2>&1 || true
+  fi
+
+  if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
+    hkz_err "CA certificates missing"
+    exit 1
+  fi
+
+  hkz_msg "DNS: 77.88.8.8 77.88.8.1 9.9.9.9"
+  hkz_msg "CA certificates: ready"
 }
 
 hkz_steamcmd_install() {
@@ -211,6 +239,7 @@ hkz_fix_permissions() {
 hkz_banner
 
 cd /mnt/server 2>/dev/null || true
+hkz_prepare_network
 hkz_steamcmd_install
 
 cd /mnt/server || { hkz_err "Cannot cd to /mnt/server"; exit 1; }
