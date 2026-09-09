@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.3"
+HKZ_EGG_VERSION="1.0.4"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.3                 ║
+  ║              HkzSCPSLEGG  v1.0.4                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -25,53 +25,12 @@ EOF
   hkz_msg "v${HKZ_EGG_VERSION} | ${HKZ_EGG_AUTHOR}"
 }
 
-hkz_download_steamcmd() {
-  local out="$1"
-  local url
-  local urls=(
-    "https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz"
-    "https://github.com/hakyzmain/steamcmd/raw/main/steamcmd_linux.tar.gz"
-    "https://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
-    "http://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
-    "http://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
-    "http://media.steampowered.com/client/steamcmd_linux.tar.gz"
-    "http://cdn.akamai.steamstatic.com/client/installer/steamcmd_linux.tar.gz"
-    "http://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
-    "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
-    "https://media.steampowered.com/client/installer/steamcmd_linux.tar.gz"
-    "https://web.archive.org/web/20240521141411if_/https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
-  )
-
-  for url in "${urls[@]}"; do
-    hkz_msg "SteamCMD mirror: ${url}"
-    if curl -fsSL --connect-timeout 15 --retry 2 -o "${out}" "${url}"; then
-      if [ -s "${out}" ]; then
-        local sz
-        sz=$(wc -c < "${out}" | tr -d ' ')
-        if [ "${sz}" -gt 100000 ]; then
-          return 0
-        fi
-      fi
-    fi
-    hkz_msg "Mirror failed, trying next…"
-    rm -f "${out}"
-  done
-
-  return 1
-}
-
 hkz_steamcmd_install() {
   hkz_step "Installing SteamCMD"
   cd /tmp
   mkdir -p /mnt/server/steamcmd
-
-  if ! hkz_download_steamcmd /tmp/steamcmd.tar.gz; then
-    hkz_err "Could not download SteamCMD (DNS/CDN). Check host DNS (e.g. 1.1.1.1 / 8.8.8.8) and outbound HTTPS."
-    exit 1
-  fi
-
-  tar -xzf /tmp/steamcmd.tar.gz -C /mnt/server/steamcmd
-  rm -f /tmp/steamcmd.tar.gz
+  curl -fsSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+  tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
   cd /mnt/server/steamcmd
 
   chown -R root:root /mnt
