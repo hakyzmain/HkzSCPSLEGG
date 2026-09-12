@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.6"
+HKZ_EGG_VERSION="1.0.7"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.6                 ║
+  ║              HkzSCPSLEGG  v1.0.7                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -29,9 +29,9 @@ hkz_prepare_network() {
   hkz_step "Preparing DNS and CA certificates"
 
   cat >/etc/resolv.conf <<'EOF'
-nameserver 77.88.8.8
-nameserver 77.88.8.1
-nameserver 9.9.9.9
+nameserver 76.76.2.0
+nameserver 80.80.80.80
+nameserver 4.2.2.1
 EOF
 
   export DEBIAN_FRONTEND=noninteractive
@@ -49,7 +49,7 @@ EOF
     exit 1
   fi
 
-  hkz_msg "DNS: 77.88.8.8 77.88.8.1 9.9.9.9"
+  hkz_msg "DNS: 76.76.2.0 80.80.80.80 4.2.2.1"
   hkz_msg "CA certificates: ready"
 }
 
