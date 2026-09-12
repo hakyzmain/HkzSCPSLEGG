@@ -3,7 +3,7 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.7"
+HKZ_EGG_VERSION="1.0.8"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
@@ -14,7 +14,7 @@ hkz_banner() {
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.7                 ║
+  ║              HkzSCPSLEGG  v1.0.8                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -28,16 +28,19 @@ EOF
 hkz_prepare_network() {
   hkz_step "Preparing DNS and CA certificates"
 
+  # Docker often ignores container resolv.conf unless Wings dns is set;
+  # still write it + pin Steam/GitHub hosts via dig @ working resolvers.
   cat >/etc/resolv.conf <<'EOF'
 nameserver 76.76.2.0
 nameserver 80.80.80.80
 nameserver 4.2.2.1
+options timeout:2 attempts:2
 EOF
 
   export DEBIAN_FRONTEND=noninteractive
   if command -v apt-get >/dev/null 2>&1; then
     apt-get update -y >/dev/null 2>&1 || true
-    apt-get install -y --no-install-recommends ca-certificates curl openssl >/dev/null 2>&1 || true
+    apt-get install -y --no-install-recommends ca-certificates curl openssl dnsutils >/dev/null 2>&1 || true
   fi
 
   if command -v update-ca-certificates >/dev/null 2>&1; then
@@ -49,8 +52,47 @@ EOF
     exit 1
   fi
 
+  hkz_pin_hosts
   hkz_msg "DNS: 76.76.2.0 80.80.80.80 4.2.2.1"
   hkz_msg "CA certificates: ready"
+}
+
+# Resolve critical hosts via Control D / Freenom and pin in /etc/hosts
+hkz_pin_hosts() {
+  local dns host ip
+  hkz_step "Pinning Steam/GitHub hosts"
+  for dns in 76.76.2.0 80.80.80.80 4.2.2.1; do
+    for host in \
+      steamcdn-a.akamaihd.net \
+      cdn.cloudflare.steamstatic.com \
+      cdn.akamai.steamstatic.com \
+      media.steampowered.com \
+      api.steampowered.com \
+      cm.steampowered.com \
+      github.com \
+      api.github.com \
+      objects.githubusercontent.com \
+      release-assets.githubusercontent.com
+    do
+      ip=""
+      if command -v dig >/dev/null 2>&1; then
+        ip=$(dig +short +time=2 +tries=1 @"$dns" "$host" A 2>/dev/null | awk '/^[0-9]+\./ { print; exit }')
+      elif command -v getent >/dev/null 2>&1; then
+        ip=$(getent ahostsv4 "$host" 2>/dev/null | awk '{ print $1; exit }')
+      fi
+      if [ -n "$ip" ]; then
+        grep -q "[[:space:]]${host}\$" /etc/hosts 2>/dev/null || echo "$ip $host" >>/etc/hosts
+        hkz_msg "hosts: $host -> $ip"
+      fi
+    done
+    # if we pinned steamcdn, good enough
+    grep -q 'steamcdn-a.akamaihd.net' /etc/hosts 2>/dev/null && break
+  done
+
+  if ! grep -q 'steamcdn-a.akamaihd.net' /etc/hosts 2>/dev/null; then
+    hkz_err "cannot resolve steamcdn-a.akamaihd.net — set Wings Docker DNS (76.76.2.0) and reinstall"
+    exit 1
+  fi
 }
 
 hkz_steamcmd_install() {
@@ -60,6 +102,12 @@ hkz_steamcmd_install() {
   curl -fsSL -o steamcmd.tar.gz https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz
   tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
   cd /mnt/server/steamcmd
+
+  # Prevent steamcmd.sh from re-downloading itself from steamcdn if binaries exist
+  if [ ! -x linux32/steamcmd ] && [ ! -x linux64/steamcmd ]; then
+    hkz_err "steamcmd binary missing in archive"
+    exit 1
+  fi
 
   chown -R root:root /mnt
   export HOME=/mnt/server
