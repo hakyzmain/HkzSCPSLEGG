@@ -3,18 +3,22 @@ set -e
 
 HKZ_EGG_NAME="HkzSCPSLEGG"
 HKZ_EGG_AUTHOR="hakyz"
-HKZ_EGG_VERSION="1.0.9"
+HKZ_EGG_VERSION="1.1.0"
 
 hkz_msg() { echo "[${HKZ_EGG_NAME}] $*"; }
 hkz_step() { echo "[${HKZ_EGG_NAME}] >> $*"; }
 hkz_err() { echo "[${HKZ_EGG_NAME}] ERROR: $*" >&2; }
+
+hkz_curl() {
+  curl -fsSL --retry 3 --retry-delay 2 "$@"
+}
 
 hkz_banner() {
   cat <<'EOF'
 
   ╔══════════════════════════════════════════════════╗
   ║                                                  ║
-  ║              HkzSCPSLEGG  v1.0.9                 ║
+  ║              HkzSCPSLEGG  v1.1.0                 ║
   ║                                                  ║
   ║        SCP: Secret Laboratory + EXILED           ║
   ║              Pterodactyl · hakyz                 ║
@@ -29,7 +33,12 @@ hkz_steamcmd_install() {
   hkz_step "Installing SteamCMD"
   cd /tmp
   mkdir -p /mnt/server/steamcmd
-  curl -fsSL -o steamcmd.tar.gz https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz
+
+  if ! hkz_curl -o steamcmd.tar.gz https://github.com/hakyzmain/steamcmd/releases/download/v1/steamcmd_linux.tar.gz; then
+    hkz_msg "Mirror failed, using Valve CDN"
+    hkz_curl -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+  fi
+
   tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
   cd /mnt/server/steamcmd
 
@@ -61,7 +70,7 @@ EOF
   elif [ "${INSTALL_SCPBOT:-false}" = "true" ]; then
     cat >>/mnt/server/.egg/start.sh <<'EOF'
 #!/bin/bash
-./.egg/SCPDBot/SCPDiscordBot_Linux &
+./.egg/SCPDBot/scpdiscord &
 ./LocalAdmin ${SERVER_PORT}
 EOF
     hkz_msg "start.sh: LocalAdmin + SCPDiscord bot"
@@ -83,13 +92,19 @@ hkz_install_dibot() {
   mkdir -p /mnt/server/.config/EXILED/Plugins
 
   rm -f /mnt/server/.egg/DIBot/DiscordIntegration.Bot
-  curl -fsSL -o /mnt/server/.egg/DIBot/DiscordIntegration.Bot \
-    https://github.com/Exiled-Team/DiscordIntegration/releases/latest/download/DiscordIntegration.Bot
+  if ! hkz_curl -o /mnt/server/.egg/DIBot/DiscordIntegration.Bot \
+    https://github.com/ExMod-Team/DiscordIntegration/releases/latest/download/DiscordIntegration.Bot; then
+    hkz_err "Discord Integration bot download failed (404/network) — skipped"
+    return 0
+  fi
   chmod +x /mnt/server/.egg/DIBot/DiscordIntegration.Bot
 
   rm -f /mnt/server/.config/EXILED/Plugins/DiscordIntegration.dll
-  curl -fsSL -o /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz \
-    https://github.com/Exiled-Team/DiscordIntegration/releases/latest/download/Plugin.tar.gz
+  if ! hkz_curl -o /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz \
+    https://github.com/ExMod-Team/DiscordIntegration/releases/latest/download/Plugin.tar.gz; then
+    hkz_err "Discord Integration plugin download failed — skipped"
+    return 0
+  fi
   tar -xzf /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz -C /mnt/server/.config/EXILED/Plugins
   rm -f /mnt/server/.config/EXILED/Plugins/Plugin.tar.gz
   hkz_msg "Discord Integration: done"
@@ -99,21 +114,31 @@ hkz_install_scpbot() {
   [ "${INSTALL_SCPBOT:-false}" = "true" ] || { hkz_msg "SCPDiscord: skipped"; return 0; }
 
   hkz_step "Installing SCPDiscord"
-  local plugdir="/mnt/server/.config/SCP Secret Laboratory/PluginAPI/plugins/global"
-  mkdir -p /mnt/server/.egg/SCPDBot "${plugdir}"
+  local plugdir="/mnt/server/.config/SCP Secret Laboratory/LabAPI/plugins/global"
+  local depdir="/mnt/server/.config/SCP Secret Laboratory/LabAPI/dependencies/global"
+  mkdir -p /mnt/server/.egg/SCPDBot "${plugdir}" "${depdir}"
 
-  rm -f /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux
-  curl -fsSL -o /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux \
-    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/SCPDiscordBot_Linux
-  chmod +x /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux
+  rm -f /mnt/server/.egg/SCPDBot/scpdiscord /mnt/server/.egg/SCPDBot/SCPDiscordBot_Linux
+  if ! hkz_curl -o /mnt/server/.egg/SCPDBot/scpdiscord \
+    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/scpdiscord; then
+    hkz_err "SCPDiscord bot download failed (asset renamed to scpdiscord) — skipped"
+    return 0
+  fi
+  chmod +x /mnt/server/.egg/SCPDBot/scpdiscord
 
-  rm -f "${plugdir}/SCPDiscord.dll" "${plugdir}/dependencies.zip"
-  curl -fsSL -o "${plugdir}/dependencies.zip" \
-    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/dependencies.zip
-  curl -fsSL -o "${plugdir}/SCPDiscord.dll" \
-    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/SCPDiscord.dll
-  unzip -oq "${plugdir}/dependencies.zip" -d "${plugdir}/"
-  rm -f "${plugdir}/dependencies.zip"
+  rm -f "${plugdir}/SCPDiscord.dll" "${depdir}/dependencies.zip"
+  if ! hkz_curl -o "${depdir}/dependencies.zip" \
+    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/dependencies.zip; then
+    hkz_err "SCPDiscord dependencies download failed — skipped"
+    return 0
+  fi
+  if ! hkz_curl -o "${plugdir}/SCPDiscord.dll" \
+    https://github.com/KarlOfDuty/SCPDiscord/releases/latest/download/SCPDiscord.dll; then
+    hkz_err "SCPDiscord.dll download failed — skipped"
+    return 0
+  fi
+  unzip -oq "${depdir}/dependencies.zip" -d "${depdir}/"
+  rm -f "${depdir}/dependencies.zip"
   hkz_msg "SCPDiscord: done"
 }
 
@@ -123,9 +148,14 @@ hkz_install_exiled() {
   hkz_step "Installing EXILED (latest stable)"
   mkdir -p /mnt/server/.config/EXILED/Configs/Plugins
   mkdir -p "/mnt/server/.config/SCP Secret Laboratory/PluginAPI/plugins/global"
+  mkdir -p "/mnt/server/.config/SCP Secret Laboratory/LabAPI/plugins/global"
 
-  curl -fsSL -o /tmp/Exiled.Installer-Linux \
-    https://github.com/ExMod-Team/EXILED/releases/latest/download/Exiled.Installer-Linux
+  if ! hkz_curl -o /tmp/Exiled.Installer-Linux \
+    https://github.com/ExMod-Team/EXILED/releases/latest/download/Exiled.Installer-Linux; then
+    hkz_msg "ExMod-Team failed, trying Exiled-Team"
+    hkz_curl -o /tmp/Exiled.Installer-Linux \
+      https://github.com/Exiled-Team/EXILED/releases/latest/download/Exiled.Installer-Linux
+  fi
   chmod +x /tmp/Exiled.Installer-Linux
 
   local args="--path /mnt/server --appdata /mnt/server/.config --exiled /mnt/server/.config/EXILED --skip-version-select --exit"
@@ -159,9 +189,9 @@ hkz_install_custom_plugin() {
   local plugin_json="/tmp/hkz-plugin.json"
 
   if [ "${GITHUB_TOKEN:-none}" = "none" ]; then
-    curl -fsSL "$url" -o "${plugin_json}"
+    hkz_curl "$url" -o "${plugin_json}" || return 1
   else
-    curl -fsSL -u "${GITHUB_USERNAME:-}:${GITHUB_TOKEN}" "$url" -o "${plugin_json}"
+    curl -fsSL --retry 3 -u "${GITHUB_USERNAME:-}:${GITHUB_TOKEN}" "$url" -o "${plugin_json}" || return 1
   fi
 
   local dl name
@@ -178,12 +208,12 @@ hkz_install_custom_plugin() {
   rm -f "/mnt/server/.config/EXILED/Plugins/${name}"
 
   if [ "${GITHUB_TOKEN:-none}" = "none" ]; then
-    curl -fsSL -o "/mnt/server/.config/EXILED/Plugins/${name}" "$dl"
+    hkz_curl -o "/mnt/server/.config/EXILED/Plugins/${name}" "$dl" || return 1
   else
     local api_url
     api_url=$(jq -r '.assets[0].url' "${plugin_json}" | sed "s|https://|https://${GITHUB_TOKEN}:@|")
-    curl -fsSL --header 'Accept: application/octet-stream' "$api_url" \
-      -o "/mnt/server/.config/EXILED/Plugins/${name}"
+    curl -fsSL --retry 3 --header 'Accept: application/octet-stream' "$api_url" \
+      -o "/mnt/server/.config/EXILED/Plugins/${name}" || return 1
   fi
 
   rm -f "${plugin_json}"
